@@ -37,10 +37,10 @@ jobs:
         shell: pwsh
         run: |
           $user = Get-LocalUser -Name "prophong024" -ErrorAction SilentlyContinue
-          if ($null -eq $user) { echo "::set-output name=exists::false" } else { echo "::set-output name=exists::true" }
+          if ($null -eq $user) { echo "exists=false" >> $env:GITHUB_ENV } else { echo "exists=true" >> $env:GITHUB_ENV }
 
       - name: Create User if Not Exists
-        if: steps.check_user.outputs.exists == 'false'
+        if: env.exists == 'false'
         shell: pwsh
         run: |
           New-LocalUser -Name "prophong024" -Password (ConvertTo-SecureString -AsPlainText "123456abcZ" -Force) -FullName "Prophong024" -Description "A local user account"
