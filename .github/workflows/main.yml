@@ -54,6 +54,11 @@ jobs:
               Write-Error "An error occurred: $_"
           }
 
+      - name: Add User to Remote Desktop Users Group
+        shell: pwsh
+        run: |
+          Add-LocalGroupMember -Group "Remote Desktop Users" -Member "prophong024"
+
       - name: Create Tunnel
         run: |
           .\ngrok.exe tcp 3389 --region ap
