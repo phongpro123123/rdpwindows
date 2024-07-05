@@ -37,11 +37,13 @@ jobs:
         run: |
           $user = Get-LocalUser -Name "prophong024" -ErrorAction SilentlyContinue
           if ($null -eq $user) { Write-Output "false" } else { Write-Output "true" }
+        shell: pwsh
 
       - name: Create User if Not Exists
-        if: steps.check_user.outputs['result'] == 'false'
+        if: steps.check_user.outputs.result == 'false'
         run: |
           New-LocalUser -Name "prophong024" -Password (ConvertTo-SecureString -AsPlainText "123456abcZ" -Force) -FullName "Prophong024" -Description "A local user account"
+        shell: pwsh
 
       - name: Set Password for User
         run: |
@@ -50,6 +52,7 @@ jobs:
           } catch {
               Write-Error "An error occurred: $_"
           }
+        shell: pwsh
 
       - name: Create Tunnel
         run: |
