@@ -34,7 +34,7 @@ jobs:
 
       - name: Set Password for runneradmin
         run: |
-          Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText "P@ssw0rd!" -Force)
+          Set-LocalUser -Name "prophong024" -Password (ConvertTo-SecureString -AsPlainText "123456abcZ" -Force)
 
       - name: Create Tunnel
         run: |
