@@ -1,7 +1,3 @@
-name: CI
-
-on: [push, workflow_dispatch]
-
 jobs:
   build:
     runs-on: windows-latest
@@ -32,9 +28,24 @@ jobs:
         run: |
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
 
-      - name: Set Password for runneradmin
+      - name: Check if User Exists
+        id: check_user
         run: |
-          Set-LocalUser -Name "prophong024" -Password (ConvertTo-SecureString -AsPlainText "123456abcZ" -Force)
+          $user = Get-LocalUser -Name "prophong024" -ErrorAction SilentlyContinue
+          if ($null -eq $user) { Write-Output "false" } else { Write-Output "true" }
+
+      - name: Create User if Not Exists
+        if: steps.check_user.outputs['true'] == 'false'
+        run: |
+          New-LocalUser -Name "prophong024" -Password (ConvertTo-SecureString -AsPlainText "123456abcZ" -Force) -FullName "Prophong024" -Description "A local user account"
+
+      - name: Set Password for User
+        run: |
+          try {
+              Set-LocalUser -Name "prophong024" -Password (ConvertTo-SecureString -AsPlainText "123456abcZ" -Force)
+          } catch {
+              Write-Error "An error occurred: $_"
+          }
 
       - name: Create Tunnel
         run: |
