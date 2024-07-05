@@ -1,3 +1,7 @@
+name: Setup Remote Desktop
+
+on: [push, workflow_dispatch]
+
 jobs:
   build:
     runs-on: windows-latest
@@ -35,7 +39,7 @@ jobs:
           if ($null -eq $user) { Write-Output "false" } else { Write-Output "true" }
 
       - name: Create User if Not Exists
-        if: steps.check_user.outputs['true'] == 'false'
+        if: steps.check_user.outputs['result'] == 'false'
         run: |
           New-LocalUser -Name "prophong024" -Password (ConvertTo-SecureString -AsPlainText "123456abcZ" -Force) -FullName "Prophong024" -Description "A local user account"
 
@@ -49,4 +53,4 @@ jobs:
 
       - name: Create Tunnel
         run: |
-          .\ngrok.exe tcp 3389
+          .\ngrok.exe tcp 3389 -region ap
