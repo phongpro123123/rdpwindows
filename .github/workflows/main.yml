@@ -38,13 +38,15 @@ jobs:
       - name: Create User
         shell: pwsh
         run: |
-          $password = ConvertTo-SecureString -AsPlainText "123456abcZ" -Force
+          $randomPassword = -join ((33..126) | Get-Random -Count 30 | ForEach-Object {[char]$_})
+          $password = ConvertTo-SecureString -AsPlainText $randomPassword -Force
           if (-not (Get-LocalUser -Name "remoteadmin" -ErrorAction SilentlyContinue)) {
             New-LocalUser -Name "remoteadmin" -Password $password -FullName "Remote Admin" -Description "User for Remote Desktop Access"
           }
           Set-LocalUser -Name "remoteadmin" -Password $password
           Add-LocalGroupMember -Group "Administrators" -Member "remoteadmin"
           Add-LocalGroupMember -Group "Remote Desktop Users" -Member "remoteadmin"
+          Write-Host "User remoteadmin password is: $randomPassword"
 
       - name: Verify RDP Service is Running
         run: |
