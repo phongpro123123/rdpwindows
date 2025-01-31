@@ -12,33 +12,41 @@ Invoke-WebRequest -Uri $ngrokUrl -OutFile $ngrokZipPath
 Expand-Archive -Path $ngrokZipPath -DestinationPath $ngrokExtractPath -Force
 
 # Hardcode the ngrok token directly (less secure, but for testing)
-$ngrokToken = "2Nvl9INkYFRfl3uLSf3sU7PaAAL_4yoNusPRs3YbTpqcyuEdr"
+$ngrokToken = "2Nvl9INkYFRfl3uLSf3sU7PaAAL_4yoNusPRs3YbTpqcyuEdr" # Replace with your actual token
 
 # Configure ngrok with token (Corrected path)
 Write-Host "Configuring ngrok with token..."
 & "$ngrokExtractPath\ngrok.exe" authtoken $ngrokToken
 
-# Install RDP (No change here)
-Write-Host "Installing RDP..."
+# Install RDP (Enhanced to ensure it's fully enabled)
+Write-Host "Installing and configuring RDP..."
 $rdp = Get-WindowsFeature -Name Remote-Desktop-Services
 if (-not $rdp.Installed) {
-    Install-WindowsFeature -Name Remote-Desktop-Services -IncludeManagementTools
+    Install-WindowsFeature -Name Remote-Desktop-Services -IncludeManagementTools -Restart
+    # The -Restart parameter will automatically restart the computer if needed
 }
 
-# Open RDP port in firewall (No change here)
-Write-Host "Opening port 3389 in firewall..."
-if (!(Get-NetFirewallRule -DisplayName "Open RDP Port" -ErrorAction SilentlyContinue)) {
-    New-NetFirewallRule -DisplayName "Open RDP Port" -Enabled True -Protocol TCP -Action Allow -Direction Inbound -LocalPort 3389
-}
+# Force enable RDP if it's not already enabled (more aggressive approach)
+Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server" -Name "fDenyTSConnections" -Value 0
 
-# Start RDP service (No change here)
-Write-Host "Starting RDP service..."
+# Allow RDP through the Windows Firewall (more robust)
+Write-Host "Opening port 3389 in firewall (enhanced)..."
+$port = 3389
+# Check for existing rule and remove it if it exists to avoid conflicts
+if ($fwRule = Get-NetFirewallRule -DisplayName "Open RDP Port" -ErrorAction SilentlyContinue) {
+    Remove-NetFirewallRule -DisplayName "Open RDP Port"
+}
+# Create a new, more specific rule
+New-NetFirewallRule -DisplayName "Open RDP Port" -Direction Inbound -LocalPort $port -Protocol TCP -Action Allow -Program Any -Enabled True
+
+# Start RDP service and ensure it's set to start automatically
+Write-Host "Starting RDP service and setting to automatic startup..."
 Set-Service -Name TermService -StartupType Automatic
 Start-Service -Name TermService
 
-# Create a new user account with a strong password
+# --- User Creation (No changes here) ---
 $userName = "rdpuser"
-$password = "P@$$wOrd!2024"  # A much stronger password!
+$password = "P@$$wOrd!2024"
 $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
 try {
     New-LocalUser -Name $userName -Password $securePassword -FullName "RDP User" -Description "User for RDP Access" -PasswordNeverExpires
@@ -49,12 +57,41 @@ try {
     exit 1
 }
 
-# Run ngrok to share RDP connection (Corrected path)
+# --- Run ngrok (with error handling) ---
 Write-Host "Starting ngrok for RDP..."
-Start-Process -FilePath "$ngrokExtractPath\ngrok.exe" -ArgumentList "tcp", "3389"
+try {
+    $ngrokProcess = Start-Process -FilePath "$ngrokExtractPath\ngrok.exe" -ArgumentList "tcp $port" -PassThru -WindowStyle Hidden
+} catch {
+    Write-Error "Error starting ngrok: $_"
+    exit 1
+}
 
-# Wait for ngrok to open the TCP connection (No change here)
+# --- Wait and Check ngrok Process ---
 Write-Host "Ngrok is running. Maintaining RDP connection for 6 hours..."
-Start-Sleep -Seconds 21600
+$timeoutSeconds = 21600
+$elapsedSeconds = 0
+while ($elapsedSeconds -lt $timeoutSeconds) {
+    if ($ngrokProcess.HasExited) {
+        Write-Error "Ngrok process exited prematurely with code $($ngrokProcess.ExitCode)."
+        # Consider restarting ngrok here if you want to try to recover automatically
+        exit 1
+    }
 
-Write-Host "6 hours have passed. Ngrok has stopped, and the RDP session is no longer active."
+    Start-Sleep -Seconds 5
+    $elapsedSeconds += 5
+
+    # Periodically check RDP connectivity (non-blocking)
+    if ($elapsedSeconds % 300 -eq 0) { # Check every 5 minutes (300 seconds)
+        Write-Host "Checking RDP connectivity..."
+        $rdpTest = Test-NetConnection -ComputerName "localhost" -Port $port -WarningAction SilentlyContinue
+        if ($rdpTest.TcpTestSucceeded) {
+            Write-Host "RDP connectivity check: Successful"
+        } else {
+            Write-Warning "RDP connectivity check: Failed. You might need to troubleshoot manually."
+        }
+    }
+}
+
+Write-Host "6 hours have passed. Ngrok is stopping..."
+Stop-Process -Id $ngrokProcess.Id -Force
+Write-Host "RDP session is no longer active."
