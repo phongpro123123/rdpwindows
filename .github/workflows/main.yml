@@ -1,60 +1,24 @@
-name: RDP Windows with ngrok
+name: Setup Windows RDP with Ngrok
 
 on:
-  workflow_dispatch: # Cho phép chạy workflow bằng tay
+  push:
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
-  build:
+  setup-rdp:
     runs-on: windows-latest
-    timeout-minutes: 60 # Tối đa 60 phút
+
     steps:
-      - name: Download ngrok
-        run: |
-          Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile "ngrok.zip"
-          Expand-Archive -Path "ngrok.zip" -DestinationPath "."
-          # Find the directory that was created by Expand-Archive
-          $ngrokDir = Get-ChildItem -Directory | Where-Object {$_.Name -like "ngrok-v*"} | Select-Object -ExpandProperty Name
-          if ($ngrokDir) {
-            # Change to that directory and rename it
-            cd $ngrokDir
-            Rename-Item -Path "." -NewName "ngrok"
-            cd ..
-          }
-          else {
-            Write-Error "Could not find the ngrok directory"
-            exit 1
-          }
-          cd ngrok
+    - name: Checkout repository
+      uses: actions/checkout@v2
 
-      - name: Enable RDP
-        run: |
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -value 0
-          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-          
-          # Tạo user "github" với password "github"
-          net user github github /add
-          net localgroup "Remote Desktop Users" github /add
-
-      - name: Run ngrok
-        run: |
-          $ngrokToken = "${{ secrets.NGROK_TOKEN }}"  # Lấy ngrok token từ secrets
-          
-          if (-not $ngrokToken) {
-              Write-Error "Vui lòng thiết lập NGROK_TOKEN trong Actions secrets" -ErrorAction Stop
-          }
-          
-          Start-Process -NoNewWindow -FilePath "ngrok.exe" -ArgumentList "authtoken $ngrokToken", "tcp", "3389"
-          Start-Sleep -Seconds 5 # đợi 5s để ngrok chạy
-          
-          # Lấy địa chỉ ngrok
-          $ngrokUrl = (Invoke-WebRequest -Uri "http://127.0.0.1:4040/api/tunnels" | ConvertFrom-Json).tunnels[0].public_url
-          echo "::set-output name=ngrok_url::$ngrokUrl"
-        id: ngrok_output
-
-      - name: Output Connection Info
-        run: |
-          Write-Host "RDP Information:"
-          Write-Host "----------------"
-          Write-Host "Username: github"
-          Write-Host "Password: github"
-          Write-Host "Ngrok URL: ${{ steps.ngrok_output.outputs.ngrok_url }}"
+    - name: Set up ngrok
+      run: |
+        # Lưu ngrok token từ GitHub Secrets vào môi trường
+        echo "NGROK_TOKEN=${{ secrets.NGROK_AUTH_TOKEN }}" >> $env:GITHUB_ENV
+        
+    - name: Run PowerShell script to setup RDP and Ngrok
+      run: |
+        powershell -ExecutionPolicy Bypass -File .\setup-rdp.ps1
