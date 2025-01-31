@@ -23,20 +23,25 @@ jobs:
       - name: Enable TS
         run: |
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
 
       - name: Enable Firewall Rule for Remote Desktop
         run: |
           Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+          New-NetFirewallRule -DisplayName "Allow RDP" -Direction Inbound -Protocol TCP -LocalPort 3389 -Action Allow
 
-      - name: Enable User Authentication for RDP
+      - name: Restart Remote Desktop Services
         run: |
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
+          Restart-Service -Name TermService -Force
 
       - name: Create User
         shell: pwsh
         run: |
           $password = ConvertTo-SecureString -AsPlainText "123456abcZ" -Force
-          New-LocalUser -Name "remoteadmin" -Password $password -FullName "Remote Admin" -Description "User for Remote Desktop Access"
+          if (-not (Get-LocalUser -Name "remoteadmin" -ErrorAction SilentlyContinue)) {
+            New-LocalUser -Name "remoteadmin" -Password $password -FullName "Remote Admin" -Description "User for Remote Desktop Access"
+          }
+          Set-LocalUser -Name "remoteadmin" -Password $password
           Add-LocalGroupMember -Group "Administrators" -Member "remoteadmin"
           Add-LocalGroupMember -Group "Remote Desktop Users" -Member "remoteadmin"
 
