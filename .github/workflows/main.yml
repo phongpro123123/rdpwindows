@@ -32,37 +32,13 @@ jobs:
         run: |
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
 
-      - name: Check if User Exists
-        id: check_user
+      - name: Create User
         shell: pwsh
         run: |
-          $user = Get-LocalUser -Name "prophong024" -ErrorAction SilentlyContinue
-          if ($null -eq $user) { echo "exists=false" >> $env:GITHUB_ENV } else { echo "exists=true" >> $env:GITHUB_ENV }
-
-      - name: Create User if Not Exists
-        if: env.exists == 'false'
-        shell: pwsh
-        run: |
-          New-LocalUser -Name "prophong024" -Password (ConvertTo-SecureString -AsPlainText "123456abcZ" -Force) -FullName "Prophong024" -Description "A local user account"
-
-      - name: Set Password for User
-        shell: pwsh
-        run: |
-          try {
-              Set-LocalUser -Name "prophong024" -Password (ConvertTo-SecureString -AsPlainText "123456abcZ" -Force)
-          } catch {
-              Write-Error "An error occurred: $_"
-          }
-
-      - name: Add User to Remote Desktop Users Group
-        shell: pwsh
-        run: |
-          Add-LocalGroupMember -Group "Remote Desktop Users" -Member "prophong024"
-
-      - name: Add User to Administrators Group
-        shell: pwsh
-        run: |
-          Add-LocalGroupMember -Group "Administrators" -Member "prophong024"
+          $password = ConvertTo-SecureString -AsPlainText "123456abcZ" -Force
+          New-LocalUser -Name "remoteadmin" -Password $password -FullName "Remote Admin" -Description "User for Remote Desktop Access"
+          Add-LocalGroupMember -Group "Administrators" -Member "remoteadmin"
+          Add-LocalGroupMember -Group "Remote Desktop Users" -Member "remoteadmin"
 
       - name: Create Tunnel
         run: |
