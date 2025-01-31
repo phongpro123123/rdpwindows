@@ -11,8 +11,8 @@ if (!(Test-Path -Path $ngrokExtractPath)) {
 Invoke-WebRequest -Uri $ngrokUrl -OutFile $ngrokZipPath
 Expand-Archive -Path $ngrokZipPath -DestinationPath $ngrokExtractPath -Force
 
-# Get ngrok token from GitHub Secrets (No change here)
-$ngrokToken = $env:NGROK_AUTH_TOKEN
+# Hardcode the ngrok token directly (less secure, but for testing)
+$ngrokToken = "2Nvl9INkYFRfl3uLSf3sU7PaAAL_4yoNusPRs3YbTpqcyuEdr"
 
 # Configure ngrok with token (Corrected path)
 Write-Host "Configuring ngrok with token..."
