@@ -48,7 +48,7 @@ jobs:
 
       - name: Verify RDP Service is Running
         run: |
-          timeout /t 30 /nobreak
+          Start-Sleep -Seconds 30
           Get-Service -Name TermService | Select-Object Status
 
       - name: Start Ngrok Tunnel and Get URL
