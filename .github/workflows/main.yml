@@ -48,8 +48,22 @@ jobs:
 
       - name: Verify RDP Service is Running
         run: |
+          timeout /t 30 /nobreak
           Get-Service -Name TermService | Select-Object Status
 
-      - name: Create Tunnel
+      - name: Start Ngrok Tunnel and Get URL
+        id: ngrok_tunnel
         run: |
-          .\ngrok.exe tcp 3389 --region ap
+          $ngrok_output = .\ngrok.exe tcp 3389 --region ap | Out-String
+          $url_match = $ngrok_output | Select-String -Pattern 'tcp://[0-9a-z\-]+\.tcp\.ap\.ngrok\.io:\d+'
+          if ($url_match) {
+            $url = $url_match.Matches[0].Value
+            echo "::set-output name=ngrok_url::$url"
+            Write-Host "Ngrok URL: $url"
+          } else {
+            Write-Error "Failed to extract Ngrok URL"
+          }
+
+      - name: Output Ngrok URL
+        run: |
+          echo "Ngrok URL: ${{ steps.ngrok_tunnel.outputs.ngrok_url }}"
