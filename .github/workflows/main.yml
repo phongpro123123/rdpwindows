@@ -1,71 +1,49 @@
-name: Setup Remote Desktop
+name: RDP Windows with ngrok
 
-on: [push, workflow_dispatch]
+on:
+  workflow_dispatch: # Cho phép chạy workflow bằng tay
 
 jobs:
   build:
     runs-on: windows-latest
+    timeout-minutes: 60 # Tối đa 60 phút
     steps:
-      - name: Download Ngrok
+      - name: Download ngrok
         run: |
-          Invoke-WebRequest https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip -OutFile ngrok.zip
+          Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile "ngrok.zip"
+          Expand-Archive -Path "ngrok.zip" -DestinationPath "."
+          Rename-Item "ngrok-v3-stable-windows-amd64" "ngrok"
+          cd ngrok
 
-      - name: Extract Ngrok
+      - name: Enable RDP
         run: |
-          Expand-Archive -Path ngrok.zip -DestinationPath .
-
-      - name: Auth Ngrok
-        env:
-          NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
-        run: |
-          .\ngrok.exe authtoken $Env:NGROK_AUTH_TOKEN
-
-      - name: Enable TS
-        run: |
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -value 0
           Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+          
+          # Tạo user "github" với password "github"
+          net user github github /add
+          net localgroup "Remote Desktop Users" github /add
 
-      - name: Enable Firewall Rule for Remote Desktop
+      - name: Run ngrok
         run: |
-          New-NetFirewallRule -DisplayName "Allow RDP" -Direction Inbound -Protocol TCP -LocalPort 3389 -Action Allow -Enabled True
-
-      - name: Restart Remote Desktop Services
-        run: |
-          Set-Service -Name TermService -StartupType Automatic
-          Restart-Service -Name TermService -Force
-
-      - name: Create User
-        shell: pwsh
-        run: |
-          $randomPassword = -join ((33..126) | Get-Random -Count 30 | ForEach-Object {[char]$_})
-          $password = ConvertTo-SecureString -AsPlainText $randomPassword -Force
-          if (-not (Get-LocalUser -Name "remoteadmin" -ErrorAction SilentlyContinue)) {
-            New-LocalUser -Name "remoteadmin" -Password $password -FullName "Remote Admin" -Description "User for Remote Desktop Access"
+          $ngrokToken = "${{ secrets.NGROK_TOKEN }}"  # Lấy ngrok token từ secrets
+          
+          if (-not $ngrokToken) {
+              Write-Error "Vui lòng thiết lập NGROK_TOKEN trong Actions secrets" -ErrorAction Stop
           }
-          Set-LocalUser -Name "remoteadmin" -Password $password
-          Add-LocalGroupMember -Group "Administrators" -Member "remoteadmin"
-          Add-LocalGroupMember -Group "Remote Desktop Users" -Member "remoteadmin"
-          Write-Host "User remoteadmin password is: $randomPassword"
+          
+          Start-Process -NoNewWindow -FilePath "ngrok.exe" -ArgumentList "authtoken $ngrokToken", "tcp", "3389"
+          Start-Sleep -Seconds 5 # đợi 5s để ngrok chạy
+          
+          # Lấy địa chỉ ngrok
+          $ngrokUrl = (Invoke-WebRequest -Uri "http://127.0.0.1:4040/api/tunnels" | ConvertFrom-Json).tunnels[0].public_url
+          echo "::set-output name=ngrok_url::$ngrokUrl"
+        id: ngrok_output
 
-      - name: Verify RDP Service is Running
+      - name: Output Connection Info
         run: |
-          Start-Sleep -Seconds 30
-          Get-Service -Name TermService | Select-Object Status
-
-      - name: Start Ngrok Tunnel and Get URL
-        id: ngrok_tunnel
-        run: |
-          $ngrok_output = .\ngrok.exe tcp 3389 --region ap | Out-String
-          $url_match = $ngrok_output | Select-String -Pattern 'tcp://[0-9a-z\-]+\.tcp\.ap\.ngrok\.io:\d+'
-          if ($url_match) {
-            $url = $url_match.Matches[0].Value
-            echo "::set-output name=ngrok_url::$url"
-            Write-Host "Ngrok URL: $url"
-          } else {
-            Write-Error "Failed to extract Ngrok URL"
-          }
-
-      - name: Output Ngrok URL
-        run: |
-          echo "Ngrok URL: ${{ steps.ngrok_tunnel.outputs.ngrok_url }}"
+          Write-Host "RDP Information:"
+          Write-Host "----------------"
+          Write-Host "Username: github"
+          Write-Host "Password: github"
+          Write-Host "Ngrok URL: ${{ steps.ngrok_output.outputs.ngrok_url }}"
