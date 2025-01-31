@@ -12,7 +12,18 @@ jobs:
         run: |
           Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile "ngrok.zip"
           Expand-Archive -Path "ngrok.zip" -DestinationPath "."
-          Rename-Item "ngrok-v3-stable-windows-amd64" "ngrok"
+          # Find the directory that was created by Expand-Archive
+          $ngrokDir = Get-ChildItem -Directory | Where-Object {$_.Name -like "ngrok-v*"} | Select-Object -ExpandProperty Name
+          if ($ngrokDir) {
+            # Change to that directory and rename it
+            cd $ngrokDir
+            Rename-Item -Path "." -NewName "ngrok"
+            cd ..
+          }
+          else {
+            Write-Error "Could not find the ngrok directory"
+            exit 1
+          }
           cd ngrok
 
       - name: Enable RDP
