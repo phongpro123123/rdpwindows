@@ -40,5 +40,8 @@ Write-Host "Tạo tài khoản người dùng $userName với mật khẩu $pass
 Write-Host "Khởi động ngrok cho RDP..."
 Start-Process -FilePath ".\ngrok\ngrok.exe" -ArgumentList "tcp", "3389"
 
-Write-Host "Ngrok đã được khởi động. Bạn có thể kết nối tới RDP thông qua đường dẫn ngrok."
-Write-Host "Sử dụng tài khoản: $userName và mật khẩu: $password để kết nối."
+# Giữ kết nối RDP trong 6 giờ
+Write-Host "Giữ kết nối RDP trong 6 giờ..."
+Start-Sleep -Seconds 21600  # 6 giờ = 21600 giây
+
+Write-Host "Kết thúc 6 giờ. Ngrok đã dừng lại và phiên RDP không còn hoạt động."
