@@ -28,21 +28,21 @@ New-NetFirewallRule -DisplayName "Open RDP Port" -Enabled True -Protocol TCP -Ac
 Write-Host "Bắt đầu dịch vụ RDP..."
 Start-Service -Name TermService
 
-# Tạo tài khoản người dùng mới (ví dụ: username là 'rdpuser' và mật khẩu là 'password123')
+# Tạo tài khoản người dùng mới (cập nhật mật khẩu mạnh hơn)
 $userName = "rdpuser"
-$password = "password123"
+$password = "P@ssw0rd123!"  # Mật khẩu mạnh hơn
 $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
 New-LocalUser -Name $userName -Password $securePassword -FullName "RDP User" -Description "User for RDP Access"
 Add-LocalGroupMember -Group "Administrators" -Member $userName
 
 Write-Host "Tạo tài khoản người dùng $userName với mật khẩu $password."
 
-# Chạy ngrok để chia sẻ kết nối RDP
+# Chạy ngrok để chia sẻ kết nối RDP qua TCP trên cổng 3389
 Write-Host "Khởi động ngrok cho RDP..."
 Start-Process -FilePath ".\ngrok\ngrok.exe" -ArgumentList "tcp", "3389"
 
-# Giữ kết nối RDP trong 6 giờ
-Write-Host "Giữ kết nối RDP trong 6 giờ..."
+# Đợi một thời gian để ngrok mở kết nối TCP
+Write-Host "Ngrok đang chạy. Đang duy trì kết nối RDP trong 6 giờ..."
 Start-Sleep -Seconds 21600  # 6 giờ = 21600 giây
 
 Write-Host "Kết thúc 6 giờ. Ngrok đã dừng lại và phiên RDP không còn hoạt động."
