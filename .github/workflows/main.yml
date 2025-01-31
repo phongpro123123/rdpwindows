@@ -24,14 +24,15 @@ jobs:
         run: |
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
 
       - name: Enable Firewall Rule for Remote Desktop
         run: |
-          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-          New-NetFirewallRule -DisplayName "Allow RDP" -Direction Inbound -Protocol TCP -LocalPort 3389 -Action Allow
+          New-NetFirewallRule -DisplayName "Allow RDP" -Direction Inbound -Protocol TCP -LocalPort 3389 -Action Allow -Enabled True
 
       - name: Restart Remote Desktop Services
         run: |
+          Set-Service -Name TermService -StartupType Automatic
           Restart-Service -Name TermService -Force
 
       - name: Create User
@@ -44,6 +45,10 @@ jobs:
           Set-LocalUser -Name "remoteadmin" -Password $password
           Add-LocalGroupMember -Group "Administrators" -Member "remoteadmin"
           Add-LocalGroupMember -Group "Remote Desktop Users" -Member "remoteadmin"
+
+      - name: Verify RDP Service is Running
+        run: |
+          Get-Service -Name TermService | Select-Object Status
 
       - name: Create Tunnel
         run: |
