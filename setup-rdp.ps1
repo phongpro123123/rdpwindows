@@ -10,6 +10,7 @@ Expand-Archive -Path $ngrokZipPath -DestinationPath $ngrokExtractPath
 $ngrokToken = $env:NGROK_AUTH_TOKEN  # Đảm bảo đã lưu token ngrok trong GitHub Secrets
 
 # Cấu hình ngrok với token
+Write-Host "Cấu hình ngrok với token..."
 & ".\ngrok\ngrok.exe" authtoken $ngrokToken
 
 # Cài đặt RDP (Nếu chưa được cài sẵn trên máy Windows)
