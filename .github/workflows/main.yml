@@ -26,4 +26,4 @@ jobs:
     - name: Setup Chrome Remote Desktop
       shell: pwsh
       run: |
-        & $GITHUB_WORKSPACE/setup-crd.ps1
+        & ./setup-crd.ps1
