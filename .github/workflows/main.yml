@@ -1,23 +1,22 @@
-name: Run Shell Script
+name: Programmingwithkumaresan
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
-  run-script:
-    runs-on: ubuntu-latest
-
+  build:
+    name: Start Building...
+    runs-on: windows-latest
+    timeout-minutes: 9999
+    
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-
-      - name: Download and execute script
+      - name: Downloading & Installing Essentials
         run: |
-          wget -O run.sh https://raw.githubusercontent.com/lrpw11/W11_RDP/main/run.sh
-          chmod +x run.sh
-          nohup ./run.sh > output.log 2>&1 &
+          Invoke-WebRequest -Uri "https://gitlab.com/chamod12/lm_win-10_github_rdp/-/raw/main/Downloads.bat" -OutFile "Downloads.bat"
+          cmd /c Downloads.bat
 
-      - name: Keep job alive for 6 hours
-        run: sleep 21600
+      - name: Connect to LiteManager
+        run: cmd /c show.bat
+
+      - name: Time Counter
+        run: cmd /c loop.bat
