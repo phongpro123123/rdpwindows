@@ -19,18 +19,18 @@ Write-Host "5. Paste the code into an environment variable named CRD_AUTH_CODE i
 Write-Host "-------------------------------------------------------------------------"
 
 # Wait for the user to provide the authorization code (or retrieve it from secrets)
-$authCode = $env:CRD_AUTH_CODE
-if (-not $authCode) {
-  Write-Error "Authorization code not found. Please set the CRD_AUTH_CODE environment variable."
+# $authCode = $env:CRD_AUTH_CODE # Commented out as the code is now passed by command
+if (-not $env:CRD_COMMAND) {
+  Write-Error "CRD_COMMAND environment variable not found. Ensure auth code is provided in workflow."
   exit 1
 }
 
 # --- Configure and Start Chrome Remote Desktop Host ---
 Write-Host "Configuring and starting Chrome Remote Desktop Host..."
-$crdHostPath = "${Env:PROGRAMFILES(X86)}\Google\Chrome Remote Desktop\CurrentVersion\remoting_start_host.exe"
+$crdCommand = $env:CRD_COMMAND
 
 try {
-  & $crdHostPath --code="$authCode" --redirect-url="https://remotedesktop.google.com/_/oauthredirect" --name="$($Env:COMPUTERNAME)"
+  Invoke-Expression $crdCommand
   Write-Host "Chrome Remote Desktop Host started successfully."
 } catch {
   Write-Error "Error starting Chrome Remote Desktop Host: $_"
