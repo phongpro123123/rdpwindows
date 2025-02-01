@@ -45,14 +45,8 @@ jobs:
           # Khởi động Chrome Remote Desktop Host
           Start-Process -FilePath "${Env:PROGRAMFILES(X86)}\Google\Chrome Remote Desktop\CurrentVersion\remoting_start_host.exe" -ArgumentList "--code=$env:REMOTE_CODE --redirect-url=https://remotedesktop.google.com/_/oauthredirect --name=$Env:COMPUTERNAME"
           
-          # Đợi thông báo yêu cầu mã PIN và tự động nhập "123456"
-          Write-Host "Vui lòng nhập mã PIN tự động."
-          Start-Sleep -Seconds 10  # Đợi một chút để cửa sổ yêu cầu mã PIN xuất hiện (tùy chỉnh nếu cần)
-          
-          # Tự động gửi mã PIN "123456"
-          Add-Type -AssemblyName "System.Windows.Forms"
-          [System.Windows.Forms.SendKeys]::Send("123456{ENTER}")
-          Write-Host "Mã PIN đã nhập tự động: 123456"
+          # Thông báo yêu cầu nhập mã PIN thủ công
+          Write-Host "Vui lòng nhập mã PIN thủ công và nhấn Enter."
 
       - name: Wait for 6 hours
         run: |
