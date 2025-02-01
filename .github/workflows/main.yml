@@ -37,26 +37,23 @@ jobs:
           Invoke-WebRequest -Uri "https://dl.google.com/edgedl/chrome-remote-desktop/chromeremotedesktophost.msi" -OutFile "chromeremotedesktophost.msi"
           Start-Process -FilePath "chromeremotedesktophost.msi" -ArgumentList "/quiet" -Wait
 
-      - name: Start Chrome Remote Desktop (Interactive)
+      - name: Start Chrome Remote Desktop (Simulated PIN Entry)
         env:
           COMPUTERNAME: ${{ runner.os }}
-          REMOTE_CODE: "4/0ASVgi3LmwIyBSqk5Cn7Dp54nqwJIFkXgEaVSI1rhgB8kFx7vH4G3jd0Bw5NS6qUvyCLQqg"  # Thay bằng mã OAuth của bạn
+          REMOTE_CODE: "4/0ASVgi3JIyVhFVZMdmvYN_3gLTU2A73t1HTHOwyfqIO7vGbp1fu5MkMNKZvoXRlVsJT5qYw"  # Thay bằng mã OAuth của bạn
         run: |
           # Khởi động Chrome Remote Desktop Host
           Start-Process -FilePath "${Env:PROGRAMFILES(X86)}\Google\Chrome Remote Desktop\CurrentVersion\remoting_start_host.exe" -ArgumentList "--code=$env:REMOTE_CODE --redirect-url=https://remotedesktop.google.com/_/oauthredirect --name=$Env:COMPUTERNAME" -NoNewWindow
           
-          # Dừng quá trình workflow tại đây và chờ mã PIN
-          Write-Host "Vui lòng nhập mã PIN khi yêu cầu xuất hiện và nhấn Enter để tiếp tục."
+          # Giả định nhập mã PIN
+          Start-Sleep -Seconds 5
+          $pin = "123456"
+          Write-Host "Mã PIN đã được nhập (mô phỏng): $pin"
           
-          # Ghi chú: Mã PIN cần được nhập vào cửa sổ console sau khi workflow tạm dừng tại bước này.
-          # Workflow sẽ tiếp tục sau khi có sự tương tác của người dùng bằng cách nhấn Enter.
-          
-          # Chờ một dòng đầu vào (nhấn Enter) từ người dùng.
-          $null = Read-Host "Nhập bất kỳ điều gì và nhấn Enter để tiếp tục sau khi đã cài đặt xong Chrome Remote Desktop"
 
       - name: Wait for 6 hours
         run: |
-          # Sau khi nhập mã PIN và nhấn Enter, giữ kết nối RDP trong 6 giờ
+          # Sau khi nhập mã PIN (giả định), giữ kết nối RDP trong 6 giờ
           Write-Host "Đang giữ kết nối RDP trong 6 giờ..."
           Start-Sleep -Seconds 21600  # 6 giờ = 21600 giây
 
