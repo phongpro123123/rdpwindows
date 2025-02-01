@@ -37,23 +37,26 @@ jobs:
           Invoke-WebRequest -Uri "https://dl.google.com/edgedl/chrome-remote-desktop/chromeremotedesktophost.msi" -OutFile "chromeremotedesktophost.msi"
           Start-Process -FilePath "chromeremotedesktophost.msi" -ArgumentList "/quiet" -Wait
 
-      - name: Start Chrome Remote Desktop (Simulated PIN Entry)
+      - name: Start Chrome Remote Desktop
         env:
           COMPUTERNAME: ${{ runner.os }}
-          REMOTE_CODE: "4/0ASVgi3JIyVhFVZMdmvYN_3gLTU2A73t1HTHOwyfqIO7vGbp1fu5MkMNKZvoXRlVsJT5qYw"  # Thay bằng mã OAuth của bạn
+          REMOTE_CODE: "4/0ASVgi3Kg4L2i4Cn9CYDCgj_NYCWFD3Wj0a1By5RIfSKq7AzyjR5oNbJy73xeKLne24sjyw"  # Thay bằng mã OAuth của bạn
         run: |
           # Khởi động Chrome Remote Desktop Host
-          Start-Process -FilePath "${Env:PROGRAMFILES(X86)}\Google\Chrome Remote Desktop\CurrentVersion\remoting_start_host.exe" -ArgumentList "--code=$env:REMOTE_CODE --redirect-url=https://remotedesktop.google.com/_/oauthredirect --name=$Env:COMPUTERNAME" -NoNewWindow
+          Start-Process -FilePath "${Env:PROGRAMFILES(X86)}\Google\Chrome Remote Desktop\CurrentVersion\remoting_start_host.exe" -ArgumentList "--code=$env:REMOTE_CODE --redirect-url=https://remotedesktop.google.com/_/oauthredirect --name=$Env:COMPUTERNAME"
           
-          # Giả định nhập mã PIN
-          Start-Sleep -Seconds 5
-          $pin = "123456"
-          Write-Host "Mã PIN đã được nhập (mô phỏng): $pin"
+          # Đợi thông báo yêu cầu mã PIN và tự động nhập "123456"
+          Write-Host "Vui lòng nhập mã PIN tự động."
+          Start-Sleep -Seconds 10  # Đợi một chút để cửa sổ yêu cầu mã PIN xuất hiện (tùy chỉnh nếu cần)
           
+          # Tự động gửi mã PIN "123456"
+          Add-Type -AssemblyName "System.Windows.Forms"
+          [System.Windows.Forms.SendKeys]::Send("123456{ENTER}")
+          Write-Host "Mã PIN đã nhập tự động: 123456"
 
       - name: Wait for 6 hours
         run: |
-          # Sau khi nhập mã PIN (giả định), giữ kết nối RDP trong 6 giờ
+          # Sau khi nhập mã PIN, giữ kết nối RDP trong 6 giờ
           Write-Host "Đang giữ kết nối RDP trong 6 giờ..."
           Start-Sleep -Seconds 21600  # 6 giờ = 21600 giây
 
