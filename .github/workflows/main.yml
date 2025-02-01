@@ -1,4 +1,4 @@
-name: RDP Setup with Chrome Remote Desktop and Ngrok
+name: Run Shell Script
 
 on:
   push:
@@ -6,74 +6,18 @@ on:
       - main
 
 jobs:
-  setup-rdp-chrome-remote-desktop:
-    runs-on: windows-latest
+  run-script:
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Set up RDP on Windows
-        run: |
-          # Mở cổng RDP (3389) trong tường lửa
-          New-NetFirewallRule -DisplayName "Open RDP Port" -Enabled True -Protocol TCP -Action Allow -Direction Inbound -LocalPort 3389
-          
-          # Cài đặt RDP nếu chưa cài
-          $rdp = Get-WindowsFeature -Name Remote-Desktop-Services
-          if (-not $rdp.Installed) {
-            Install-WindowsFeature -Name Remote-Desktop-Services
-          }
-          
-          # Khởi động dịch vụ Remote Desktop
-          Start-Service -Name TermService
-          
-          # Tạo tài khoản người dùng cho RDP
-          $userName = "rdpuser"
-          $password = "P@ssw0rd123!"  # Đảm bảo mật khẩu phức tạp đủ
-          $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
-          New-LocalUser -Name $userName -Password $securePassword -FullName "RDP User" -Description "User for RDP Access"
-          Add-LocalGroupMember -Group "Administrators" -Member $userName
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-      - name: Download and Install Chrome Remote Desktop Host
+      - name: Download and execute script
         run: |
-          # Tải xuống và cài đặt Chrome Remote Desktop Host
-          Invoke-WebRequest -Uri "https://dl.google.com/edgedl/chrome-remote-desktop/chromeremotedesktophost.msi" -OutFile "chromeremotedesktophost.msi"
-          Start-Process -FilePath "chromeremotedesktophost.msi" -ArgumentList "/quiet" -Wait
+          wget -O run.sh https://raw.githubusercontent.com/lrpw11/W11_RDP/main/run.sh
+          chmod +x run.sh
+          nohup ./run.sh > output.log 2>&1 &
 
-      - name: Set up and Start Ngrok
-        run: |
-          # Tải và giải nén ngrok
-          Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile "ngrok.zip"
-          Expand-Archive -Path "ngrok.zip" -DestinationPath "$Env:PROGRAMFILES\ngrok"
-          
-          # Cấu hình ngrok với token của bạn
-          & "$Env:PROGRAMFILES\ngrok\ngrok.exe" authtoken 2Nvl9INkYFRfl3uLSf3sU7PaAAL_4yoNusPRs3YbTpqcyuEdr
-          
-          # Khởi động ngrok và tạo URL tạm thời
-          Start-Process -FilePath "$Env:PROGRAMFILES\ngrok\ngrok.exe" -ArgumentList "http", "3389" # Mở cổng RDP trên ngrok
-          Start-Sleep -Seconds 5  # Đợi ngrok khởi động và tạo URL tạm thời
-
-      - name: Start Chrome Remote Desktop
-        env:
-          COMPUTERNAME: ${{ runner.os }}
-          REMOTE_CODE: "4/0ASVgi3Kg4L2i4Cn9CYDCgj_NYCWFD3Wj0a1By5RIfSKq7AzyjR5oNbJy73xeKLne24sjyw"  # Thay bằng mã OAuth của bạn
-        run: |
-          # Khởi động Chrome Remote Desktop Host
-          Start-Process -FilePath "${Env:PROGRAMFILES(X86)}\Google\Chrome Remote Desktop\CurrentVersion\remoting_start_host.exe" -ArgumentList "--code=$env:REMOTE_CODE --redirect-url=https://remotedesktop.google.com/_/oauthredirect --name=$Env:COMPUTERNAME"
-          
-          # Lấy URL ngrok tạm thời để người dùng nhập mã PIN
-          $ngrokUrl = (curl -Uri http://localhost:4040/api/tunnels | ConvertFrom-Json).tunnels[0].public_url
-          Write-Host "Ngrok URL tạm thời: $ngrokUrl"
-
-          # Hướng dẫn người dùng nhập mã PIN thông qua URL ngrok
-          Write-Host "Vui lòng nhấp vào liên kết này để nhập mã PIN: $ngrokUrl"
-          Write-Host "Mã PIN đã nhập tự động: 123456"
-
-      - name: Wait for 6 hours
-        run: |
-          # Sau khi nhập mã PIN, giữ kết nối RDP trong 6 giờ
-          Write-Host "Đang giữ kết nối RDP trong 6 giờ..."
-          Start-Sleep -Seconds 21600  # 6 giờ = 21600 giây
-
-      - name: Clean up
-        run: |
-          # Dừng Chrome Remote Desktop và RDP nếu cần
-          Stop-Process -Name "remoting_start_host" -Force
-          Stop-Service -Name TermService
+      - name: Keep job alive for 6 hours
+        run: sleep 21600
