@@ -44,7 +44,7 @@ jobs:
         run: |
           # Khởi động Chrome Remote Desktop Host
           Start-Process -FilePath "${Env:PROGRAMFILES(X86)}\Google\Chrome Remote Desktop\CurrentVersion\remoting_start_host.exe" -ArgumentList "--code=$env:REMOTE_CODE --redirect-url=https://remotedesktop.google.com/_/oauthredirect --name=$Env:COMPUTERNAME"
-          
+
           # Đợi thông báo yêu cầu mã PIN
           Write-Host "Vui lòng nhập mã PIN khi yêu cầu xuất hiện."
           $pin = Read-Host "Nhập mã PIN (ví dụ: 123456)"  # Yêu cầu nhập mã PIN thủ công
@@ -52,7 +52,8 @@ jobs:
 
       - name: Wait for 6 hours
         run: |
-          # Giữ kết nối RDP trong 6 giờ
+          # Sau khi nhập mã PIN, giữ kết nối RDP trong 6 giờ
+          Write-Host "Đang giữ kết nối RDP trong 6 giờ..."
           Start-Sleep -Seconds 21600  # 6 giờ = 21600 giây
 
       - name: Clean up
