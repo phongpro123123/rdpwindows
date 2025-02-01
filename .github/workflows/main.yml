@@ -12,9 +12,6 @@ jobs:
     steps:
       - name: Set up RDP on Windows
         run: |
-          # Bật tính năng Remote Desktop trên Windows
-          Enable-WindowsOptionalFeature -Online -FeatureName "RemoteDesktop-Client" -NoRestart
-          
           # Mở cổng RDP (3389) trong tường lửa
           New-NetFirewallRule -DisplayName "Open RDP Port" -Enabled True -Protocol TCP -Action Allow -Direction Inbound -LocalPort 3389
           
