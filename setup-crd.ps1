@@ -28,10 +28,10 @@ if (-not $env:CRD_COMMAND) {
 # --- Configure and Start Chrome Remote Desktop Host ---
 Write-Host "Configuring and starting Chrome Remote Desktop Host..."
 $crdCommand = $env:CRD_COMMAND
-
+$crdCommandArgs = ConvertFrom-String -String $crdCommand -Delimiter ' '
 try {
-  Invoke-Expression $crdCommand
-  Write-Host "Chrome Remote Desktop Host started successfully."
+    & $crdCommandArgs[0] @($crdCommandArgs | Select -Skip 1)
+    Write-Host "Chrome Remote Desktop Host started successfully."
 } catch {
   Write-Error "Error starting Chrome Remote Desktop Host: $_"
   exit 1
