@@ -1,23 +1,61 @@
-name: Setup Remote Access
+name: RDP Setup with Chrome Remote Desktop
 
 on:
-  workflow_dispatch:
-    inputs:
-      auth_code:
-        description: 'Chrome Remote Desktop Authorization Code'
-        required: true
+  push:
+    branches:
+      - main
 
 jobs:
-  setup-remote-access:
+  setup-rdp-chrome-remote-desktop:
     runs-on: windows-latest
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Set up RDP on Windows
+        run: |
+          # Bật tính năng Remote Desktop trên Windows
+          Enable-WindowsOptionalFeature -Online -FeatureName "Microsoft-Hyper-V-All" -NoRestart
+          Enable-WindowsOptionalFeature -Online -FeatureName "RemoteDesktop-Client" -NoRestart
+          
+          # Mở cổng RDP (3389) trong tường lửa
+          New-NetFirewallRule -DisplayName "Open RDP Port" -Enabled True -Protocol TCP -Action Allow -Direction Inbound -LocalPort 3389
+          
+          # Cài đặt RDP nếu chưa cài
+          $rdp = Get-WindowsFeature -Name Remote-Desktop-Services
+          if (-not $rdp.Installed) {
+            Install-WindowsFeature -Name Remote-Desktop-Services
+          }
 
-    - name: Set CRD_AUTH_CODE
-      run: echo "CRD_AUTH_CODE=${{ github.event.inputs.auth_code }}" >> $env:GITHUB_ENV
+          # Khởi động dịch vụ Remote Desktop
+          Start-Service -Name TermService
+          
+          # Tạo tài khoản người dùng cho RDP
+          $userName = "rdpuser"
+          $password = "P@ssw0rd123!"  # Đảm bảo mật khẩu phức tạp đủ
+          $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
+          New-LocalUser -Name $userName -Password $securePassword -FullName "RDP User" -Description "User for RDP Access"
+          Add-LocalGroupMember -Group "Administrators" -Member $userName
 
-    - name: Setup Chrome Remote Desktop
-      shell: pwsh
-      run: |
-        & ./setup-crd-github.ps1
+      - name: Download and Install Chrome Remote Desktop Host
+        run: |
+          # Tải xuống và cài đặt Chrome Remote Desktop Host
+          Invoke-WebRequest -Uri "https://dl.google.com/edgedl/chrome-remote-desktop/chromeremotedesktophost.msi" -OutFile "chromeremotedesktophost.msi"
+          Start-Process -FilePath "chromeremotedesktophost.msi" -ArgumentList "/quiet" -Wait
+
+      - name: Start Chrome Remote Desktop
+        env:
+          COMPUTERNAME: ${{ runner.os }}
+          REMOTE_CODE: "4/0ASVgi3IniSalyI11wZYl4lI6OnLc9M_LzndQGwRP4sghf5dxE3gWIjdUkLKKQFTrd51-vA"  # Thay bằng mã OAuth của bạn
+        run: |
+          # Khởi động Chrome Remote Desktop Host
+          & "${Env:PROGRAMFILES(X86)}\Google\Chrome Remote Desktop\CurrentVersion\remoting_start_host.exe" --code=$env:REMOTE_CODE --redirect-url="https://remotedesktop.google.com/_/oauthredirect" --name=$Env:COMPUTERNAME
+
+      - name: Wait for 6 hours
+        run: |
+          # Giữ kết nối RDP trong 6 giờ
+          Start-Sleep -Seconds 21600  # 6 giờ = 21600 giây
+
+      - name: Clean up
+        run: |
+          # Dừng Chrome Remote Desktop và RDP nếu cần
+          Stop-Process -Name "remoting_start_host" -Force
+          Stop-Service -Name TermService
