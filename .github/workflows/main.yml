@@ -13,7 +13,6 @@ jobs:
       - name: Set up RDP on Windows
         run: |
           # Bật tính năng Remote Desktop trên Windows
-          Enable-WindowsOptionalFeature -Online -FeatureName "Microsoft-Hyper-V-All" -NoRestart
           Enable-WindowsOptionalFeature -Online -FeatureName "RemoteDesktop-Client" -NoRestart
           
           # Mở cổng RDP (3389) trong tường lửa
@@ -24,7 +23,7 @@ jobs:
           if (-not $rdp.Installed) {
             Install-WindowsFeature -Name Remote-Desktop-Services
           }
-
+          
           # Khởi động dịch vụ Remote Desktop
           Start-Service -Name TermService
           
