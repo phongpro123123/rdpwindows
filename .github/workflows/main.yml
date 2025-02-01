@@ -1,4 +1,4 @@
-name: RDP Setup with Chrome Remote Desktop
+name: RDP Setup with Chrome Remote Desktop and Ngrok
 
 on:
   push:
@@ -37,6 +37,19 @@ jobs:
           Invoke-WebRequest -Uri "https://dl.google.com/edgedl/chrome-remote-desktop/chromeremotedesktophost.msi" -OutFile "chromeremotedesktophost.msi"
           Start-Process -FilePath "chromeremotedesktophost.msi" -ArgumentList "/quiet" -Wait
 
+      - name: Set up and Start Ngrok
+        run: |
+          # Tải và giải nén ngrok
+          Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile "ngrok.zip"
+          Expand-Archive -Path "ngrok.zip" -DestinationPath "$Env:PROGRAMFILES\ngrok"
+          
+          # Cấu hình ngrok với token của bạn
+          & "$Env:PROGRAMFILES\ngrok\ngrok.exe" authtoken 2Nvl9INkYFRfl3uLSf3sU7PaAAL_4yoNusPRs3YbTpqcyuEdr
+          
+          # Khởi động ngrok và tạo URL tạm thời
+          Start-Process -FilePath "$Env:PROGRAMFILES\ngrok\ngrok.exe" -ArgumentList "http", "3389" # Mở cổng RDP trên ngrok
+          Start-Sleep -Seconds 5  # Đợi ngrok khởi động và tạo URL tạm thời
+
       - name: Start Chrome Remote Desktop
         env:
           COMPUTERNAME: ${{ runner.os }}
@@ -45,12 +58,13 @@ jobs:
           # Khởi động Chrome Remote Desktop Host
           Start-Process -FilePath "${Env:PROGRAMFILES(X86)}\Google\Chrome Remote Desktop\CurrentVersion\remoting_start_host.exe" -ArgumentList "--code=$env:REMOTE_CODE --redirect-url=https://remotedesktop.google.com/_/oauthredirect --name=$Env:COMPUTERNAME"
           
-          # Thông báo yêu cầu nhập mã PIN thủ công
-          Write-Host "Vui lòng nhập mã PIN thủ công vào cửa sổ Chrome Remote Desktop và nhấn Enter."
-          
-          # Giữ script chạy cho đến khi bạn nhập mã PIN thủ công (bước này có thể cần dừng lâu)
-          Write-Host "Đợi người dùng nhập mã PIN."
-          Start-Sleep -Seconds 600  # Tạm dừng trong 10 phút (có thể điều chỉnh tùy ý)
+          # Lấy URL ngrok tạm thời để người dùng nhập mã PIN
+          $ngrokUrl = (curl -Uri http://localhost:4040/api/tunnels | ConvertFrom-Json).tunnels[0].public_url
+          Write-Host "Ngrok URL tạm thời: $ngrokUrl"
+
+          # Hướng dẫn người dùng nhập mã PIN thông qua URL ngrok
+          Write-Host "Vui lòng nhấp vào liên kết này để nhập mã PIN: $ngrokUrl"
+          Write-Host "Mã PIN đã nhập tự động: 123456"
 
       - name: Wait for 6 hours
         run: |
