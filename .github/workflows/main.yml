@@ -37,13 +37,44 @@ jobs:
           Invoke-WebRequest -Uri "https://dl.google.com/edgedl/chrome-remote-desktop/chromeremotedesktophost.msi" -OutFile "chromeremotedesktophost.msi"
           Start-Process -FilePath "chromeremotedesktophost.msi" -ArgumentList "/quiet" -Wait
 
-      - name: Start Chrome Remote Desktop
+      - name: Start Chrome Remote Desktop and Set PIN
         env:
           COMPUTERNAME: ${{ runner.os }}
           REMOTE_CODE: "4/0ASVgi3IniSalyI11wZYl4lI6OnLc9M_LzndQGwRP4sghf5dxE3gWIjdUkLKKQFTrd51-vA"  # Thay bằng mã OAuth của bạn
         run: |
           # Khởi động Chrome Remote Desktop Host
-          & "${Env:PROGRAMFILES(X86)}\Google\Chrome Remote Desktop\CurrentVersion\remoting_start_host.exe" --code=$env:REMOTE_CODE --redirect-url="https://remotedesktop.google.com/_/oauthredirect" --name=$Env:COMPUTERNAME
+          Start-Process -FilePath "${Env:PROGRAMFILES(X86)}\Google\Chrome Remote Desktop\CurrentVersion\remoting_start_host.exe" -ArgumentList "--code=$env:REMOTE_CODE --redirect-url=https://remotedesktop.google.com/_/oauthredirect --name=$Env:COMPUTERNAME"
+          
+          # Đảm bảo nhập mã PIN tự động
+          Start-Sleep -Seconds 5  # Đợi 5 giây để Chrome Remote Desktop yêu cầu nhập mã PIN
+          
+          # Gửi mã PIN '123456'
+          Add-Type -TypeDefinition @"
+            using System;
+            using System.Runtime.InteropServices;
+            public class Keyboard {
+                [DllImport("user32.dll")]
+                public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, uint dwExtraInfo);
+            }
+          "@
+          
+          # Gửi mã PIN '123456'
+          [Keyboard]::keybd_event(0x31, 0, 0, 0)  # 1
+          [Keyboard]::keybd_event(0x31, 0, 2, 0)  # 1
+          [Keyboard]::keybd_event(0x32, 0, 0, 0)  # 2
+          [Keyboard]::keybd_event(0x32, 0, 2, 0)  # 2
+          [Keyboard]::keybd_event(0x33, 0, 0, 0)  # 3
+          [Keyboard]::keybd_event(0x33, 0, 2, 0)  # 3
+          [Keyboard]::keybd_event(0x34, 0, 0, 0)  # 4
+          [Keyboard]::keybd_event(0x34, 0, 2, 0)  # 4
+          [Keyboard]::keybd_event(0x35, 0, 0, 0)  # 5
+          [Keyboard]::keybd_event(0x35, 0, 2, 0)  # 5
+          [Keyboard]::keybd_event(0x36, 0, 0, 0)  # 6
+          [Keyboard]::keybd_event(0x36, 0, 2, 0)  # 6
+          
+          # Nhấn Enter để xác nhận
+          [Keyboard]::keybd_event(0x0D, 0, 0, 0)  # Enter
+          [Keyboard]::keybd_event(0x0D, 0, 2, 0)  # Enter
 
       - name: Wait for 6 hours
         run: |
