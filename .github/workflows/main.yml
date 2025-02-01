@@ -26,4 +26,4 @@ jobs:
     - name: Setup Chrome Remote Desktop
       shell: pwsh
       run: |
-         & "$PSScriptRoot/setup-crd.ps1"
+          & $PSScriptRoot/setup-crd.ps1
