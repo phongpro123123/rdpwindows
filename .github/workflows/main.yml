@@ -1,26 +1,23 @@
-name: Setup Windows RDP with Ngrok
+name: Setup Remote Access
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
+    inputs:
+      auth_code:
+        description: 'Chrome Remote Desktop Authorization Code'
+        required: true
 
 jobs:
-  setup-rdp:
+  setup-remote-access:
     runs-on: windows-latest
-    timeout-minutes: 420  # Thiết lập thời gian chạy tối đa là 7 giờ (420 phút)
-
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-    - name: Set up ngrok
-      run: |
-        # Lưu ngrok token từ GitHub Secrets vào môi trường
-        echo "NGROK_TOKEN=${{ secrets.NGROK_AUTH_TOKEN }}" >> $env:GITHUB_ENV
+    - name: Set CRD_AUTH_CODE
+      run: echo "CRD_AUTH_CODE=${{ github.event.inputs.auth_code }}" >> $env:GITHUB_ENV
 
-    - name: Run PowerShell script to setup RDP and Ngrok
+    - name: Setup Chrome Remote Desktop
       shell: pwsh
       run: |
-        powershell -ExecutionPolicy Bypass -File "./setup-rdp.ps1"
+        .\setup-crd.ps1
