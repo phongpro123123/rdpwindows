@@ -1,97 +1,55 @@
-# Install ngrok (Corrected path handling)
-$ngrokUrl = "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip"
-$ngrokZipPath = "ngrok.zip"
-$ngrokExtractPath = "$PSScriptRoot\ngrok"  # Extract to a subfolder in the script's directory
+# Install Chrome Remote Desktop
+Write-Host "Downloading and installing Chrome Remote Desktop..."
+$crdInstallerUrl = "https://dl.google.com/edgedl/chrome-remote-desktop/chromeremotedesktophost.msi"
+$crdInstallerPath = "$env:TEMP\chromeremotedesktophost.msi"
 
-# Create the ngrok directory if it doesn't exist
-if (!(Test-Path -Path $ngrokExtractPath)) {
-    New-Item -ItemType Directory -Path $ngrokExtractPath
+Invoke-WebRequest -Uri $crdInstallerUrl -OutFile $crdInstallerPath
+
+# Install the MSI package silently
+Start-Process -FilePath "msiexec.exe" -ArgumentList "/i `"$crdInstallerPath`" /qn /norestart" -Wait
+
+# --- Get Authorization Code (Manual Step Required) ---
+Write-Host "-------------------------------------------------------------------------"
+Write-Host "IMPORTANT: You need to get an authorization code from Google."
+Write-Host "1. Go to: https://remotedesktop.google.com/access (on your local machine)"
+Write-Host "2. Click 'Set up remote access'"
+Write-Host "3. Click the blue 'Generate Code' button"
+Write-Host "4. Copy the generated code (it will look like: 4/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)"
+Write-Host "5. Paste the code into an environment variable named CRD_AUTH_CODE in your GitHub Actions workflow."
+Write-Host "-------------------------------------------------------------------------"
+
+# Wait for the user to provide the authorization code (or retrieve it from secrets)
+$authCode = $env:CRD_AUTH_CODE
+if (-not $authCode) {
+  Write-Error "Authorization code not found. Please set the CRD_AUTH_CODE environment variable."
+  exit 1
 }
 
-Invoke-WebRequest -Uri $ngrokUrl -OutFile $ngrokZipPath
-Expand-Archive -Path $ngrokZipPath -DestinationPath $ngrokExtractPath -Force
+# --- Configure and Start Chrome Remote Desktop Host ---
+Write-Host "Configuring and starting Chrome Remote Desktop Host..."
+$crdHostPath = "${Env:PROGRAMFILES(X86)}\Google\Chrome Remote Desktop\CurrentVersion\remoting_start_host.exe"
 
-# Hardcode the ngrok token directly (less secure, but for testing)
-$ngrokToken = "2Nvl9INkYFRfl3uLSf3sU7PaAAL_4yoNusPRs3YbTpqcyuEdr" # Replace with your actual token
-
-# Configure ngrok with token (Corrected path)
-Write-Host "Configuring ngrok with token..."
-& "$ngrokExtractPath\ngrok.exe" authtoken $ngrokToken
-
-# Install RDP (Enhanced to ensure it's fully enabled)
-Write-Host "Installing and configuring RDP..."
-$rdp = Get-WindowsFeature -Name Remote-Desktop-Services
-if (-not $rdp.Installed) {
-    Install-WindowsFeature -Name Remote-Desktop-Services -IncludeManagementTools -Restart
-    # The -Restart parameter will automatically restart the computer if needed
-}
-
-# Force enable RDP if it's not already enabled (more aggressive approach)
-Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server" -Name "fDenyTSConnections" -Value 0
-
-# Allow RDP through the Windows Firewall (more robust)
-Write-Host "Opening port 3389 in firewall (enhanced)..."
-$port = 3389
-# Check for existing rule and remove it if it exists to avoid conflicts
-if ($fwRule = Get-NetFirewallRule -DisplayName "Open RDP Port" -ErrorAction SilentlyContinue) {
-    Remove-NetFirewallRule -DisplayName "Open RDP Port"
-}
-# Create a new, more specific rule
-New-NetFirewallRule -DisplayName "Open RDP Port" -Direction Inbound -LocalPort $port -Protocol TCP -Action Allow -Program Any -Enabled True
-
-# Start RDP service and ensure it's set to start automatically
-Write-Host "Starting RDP service and setting to automatic startup..."
-Set-Service -Name TermService -StartupType Automatic
-Start-Service -Name TermService
-
-# --- User Creation (No changes here) ---
-$userName = "rdpuser"
-$password = "P@$$wOrd!2024"
-$securePassword = ConvertTo-SecureString $password -AsPlainText -Force
 try {
-    New-LocalUser -Name $userName -Password $securePassword -FullName "RDP User" -Description "User for RDP Access" -PasswordNeverExpires
-    Add-LocalGroupMember -Group "Administrators" -Member $userName
-    Write-Host "Created user account '$userName' with the specified password."
+  & $crdHostPath --code="$authCode" --redirect-url="https://remotedesktop.google.com/_/oauthredirect" --name="$($Env:COMPUTERNAME)"
+  Write-Host "Chrome Remote Desktop Host started successfully."
 } catch {
-    Write-Host "Error creating user account: $_"
-    exit 1
+  Write-Error "Error starting Chrome Remote Desktop Host: $_"
+  exit 1
 }
 
-# --- Run ngrok (with error handling) ---
-Write-Host "Starting ngrok for RDP..."
-try {
-    $ngrokProcess = Start-Process -FilePath "$ngrokExtractPath\ngrok.exe" -ArgumentList "tcp $port" -PassThru -WindowStyle Hidden
-} catch {
-    Write-Error "Error starting ngrok: $_"
-    exit 1
-}
+# --- Keep-Alive Task ---
+Write-Host "Creating scheduled task to maintain connection..."
 
-# --- Wait and Check ngrok Process ---
-Write-Host "Ngrok is running. Maintaining RDP connection for 6 hours..."
-$timeoutSeconds = 21600
-$elapsedSeconds = 0
-while ($elapsedSeconds -lt $timeoutSeconds) {
-    if ($ngrokProcess.HasExited) {
-        Write-Error "Ngrok process exited prematurely with code $($ngrokProcess.ExitCode)."
-        # Consider restarting ngrok here if you want to try to recover automatically
-        exit 1
-    }
+# Define the task action (using PowerShell to simulate input)
+$action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-Command `"Write-Host 'Keep-alive'; Start-Sleep -Seconds 5`""
 
-    Start-Sleep -Seconds 5
-    $elapsedSeconds += 5
+# Define the task trigger (run every 5 minutes)
+$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 5) -RepetitionDuration (New-TimeSpan -Hours 6)
 
-    # Periodically check RDP connectivity (non-blocking)
-    if ($elapsedSeconds % 300 -eq 0) { # Check every 5 minutes (300 seconds)
-        Write-Host "Checking RDP connectivity..."
-        $rdpTest = Test-NetConnection -ComputerName "localhost" -Port $port -WarningAction SilentlyContinue
-        if ($rdpTest.TcpTestSucceeded) {
-            Write-Host "RDP connectivity check: Successful"
-        } else {
-            Write-Warning "RDP connectivity check: Failed. You might need to troubleshoot manually."
-        }
-    }
-}
+# Define the task settings
+$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -DontStopOnIdleEnd
 
-Write-Host "6 hours have passed. Ngrok is stopping..."
-Stop-Process -Id $ngrokProcess.Id -Force
-Write-Host "RDP session is no longer active."
+# Register the scheduled task
+Register-ScheduledTask -TaskName "CRDKeepAlive" -Action $action -Trigger $trigger -Settings $settings -User "SYSTEM" -RunLevel Highest -Force
+
+Write-Host "Chrome Remote Desktop setup complete. Connection should be maintained for approximately 6 hours."
