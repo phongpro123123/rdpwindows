@@ -46,7 +46,11 @@ jobs:
           Start-Process -FilePath "${Env:PROGRAMFILES(X86)}\Google\Chrome Remote Desktop\CurrentVersion\remoting_start_host.exe" -ArgumentList "--code=$env:REMOTE_CODE --redirect-url=https://remotedesktop.google.com/_/oauthredirect --name=$Env:COMPUTERNAME"
           
           # Thông báo yêu cầu nhập mã PIN thủ công
-          Write-Host "Vui lòng nhập mã PIN thủ công và nhấn Enter."
+          Write-Host "Vui lòng nhập mã PIN thủ công vào cửa sổ Chrome Remote Desktop và nhấn Enter."
+          
+          # Giữ script chạy cho đến khi bạn nhập mã PIN thủ công (bước này có thể cần dừng lâu)
+          Write-Host "Đợi người dùng nhập mã PIN."
+          Start-Sleep -Seconds 600  # Tạm dừng trong 10 phút (có thể điều chỉnh tùy ý)
 
       - name: Wait for 6 hours
         run: |
